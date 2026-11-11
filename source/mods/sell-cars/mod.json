@@ -1,0 +1,12 @@
+{
+  "id": "sell-cars",
+  "kind": "native",
+  "version": "0.1.0",
+  "display_name": "Sell Cars",
+  "gameplay": true,
+  "feature_dependencies": [],
+  "play_help": [
+    "Empty and stop your own car; Alt+Delete twice within five seconds sells it.",
+    "Implementation build only; game testing is deferred."
+  ]
+}
