@@ -1,5 +1,7 @@
 # Sell Cars
 
+<img src="media/icon.png" alt="Sell Cars icon" width="128" height="128">
+
 Alt+Delete twice sells an empty stopped owned car at half offer price.
 
 ## Install
