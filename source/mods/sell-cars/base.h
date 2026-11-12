@@ -2,6 +2,8 @@
 #include "../../runtime/native/gameplay.h"
 #include "../../runtime/native/input.h"
 #include "api.h"
+#include "../vehicle-framework/vehicle_reads.h"
+#include "safety.h"
 int _fltused=0;
 static PTR world_f,mounted_f,body_f,joined_m,host_m,local_m,typing_m,blocked_m,menu_m,focus_m,restoring_m,alive_m,time_m;
 static void (*set_field)(PTR,PTR,void *);
@@ -10,13 +12,32 @@ static short key(int vk){return moon_input_key((unsigned)vk)?(short)0x8000:0;}
 static PTR (*foreground)(void);static DWORD (*window_pid)(PTR,DWORD *);
 static PTR evidence;static DWORD thread_id;static int previous_key;
 static float clock_now;
-static int alive(PTR p){int ok=1;void *a[]={p};PTR b=p?call(alive_m,0,a,&ok):0;return ok&&b&&*(unsigned char*)unbox(b);}
-static int host(void){int ok=1;if(!boolean(joined_m,0,&ok))return ok;PTR a=call(local_m,0,0,&ok),b=call(host_m,0,0,&ok);return ok&&a&&b&&*(U64*)unbox(a)&&*(U64*)unbox(a)==*(U64*)unbox(b);}
+static PTR bdata(PTR box){return moon_sale_box_data(box,unbox);}
+static int bbool(PTR m,PTR self,int *ok){
+ int value=0;PTR box=call(m,self,0,ok);
+ if(!moon_sale_bool_data(bdata(box),&value))*ok=0;
+ return value;
+}
+static int bint(PTR m,PTR self,int *ok){
+ PTR data=bdata(call(m,self,0,ok));if(!data){*ok=0;return 0;}return *(int*)data;
+}
+static float bnumber(PTR m,PTR self,int *ok){
+ PTR data=bdata(call(m,self,0,ok));if(!data){*ok=0;return 0;}return *(float*)data;
+}
+static int alive(PTR p){
+ int ok=1,value=0;void *a[]={p};PTR box=p?call(alive_m,0,a,&ok):0;
+ return ok&&moon_sale_bool_data(bdata(box),&value)&&value;
+}
+static int host(void){
+ int ok=1;if(!bbool(joined_m,0,&ok))return ok;
+ PTR data=bdata(call(local_m,0,0,&ok));if(!ok||!data)return 0;U64 local=*(U64*)data;
+ data=bdata(call(host_m,0,0,&ok));return ok&&data&&local&&local==*(U64*)data;
+}
 static void event(const char *s){if(!evidence)return;char b[256],*p=cat(b,"{\"event\":\"");p=cat(p,s);p=cat(p,"\"}\n");DWORD n=0;WriteFile(evidence,b,(DWORD)(p-b),&n,0);FlushFileBuffers(evidence);}
 static int input_ready(PTR walker,PTR *world,PTR *vehicle,int needs_host){
  int ok=1;*world=0;*vehicle=0;field_value(walker,world_f,world);field_value(walker,mounted_f,vehicle);
  DWORD pid=0;window_pid(foreground(),&pid);
- return alive(*world)&&alive(*vehicle)&&pid==GetCurrentProcessId()&&boolean(focus_m,0,&ok)&&!boolean(typing_m,0,&ok)&&!boolean(blocked_m,walker,&ok)&&!boolean(menu_m,walker,&ok)&&!boolean(restoring_m,*world,&ok)&&ok&&(!needs_host||host());
+ return alive(*world)&&alive(*vehicle)&&pid==GetCurrentProcessId()&&bbool(focus_m,0,&ok)&&!bbool(typing_m,0,&ok)&&!bbool(blocked_m,walker,&ok)&&!bbool(menu_m,walker,&ok)&&!bbool(restoring_m,*world,&ok)&&ok&&(!needs_host||host());
 }
 static int pressed(int vk){int down=(key(0x12)&0x8000)&&(key(vk)&0x8000);int edge=down&&!previous_key;previous_key=down;return edge;}
 static int base_bind(PTR domain,PTR game,const char *logname){
@@ -32,6 +53,6 @@ static int base_bind(PTR domain,PTR game,const char *logname){
 #undef M
  if(!world_f||!mounted_f||!body_f)return 0;
  char path[1100];DWORD n=GetEnvironmentVariableA("MOONLAB_EVIDENCE",path,900);if(n&&n<900){cat(path+n,"\\");cat(path+n+1,logname);evidence=CreateFileA(path,0x40000000,1,0,2,0x80,0);if(evidence==(PTR)(U64)-1)evidence=0;}
- (void)integer;(void)num;(void)clock_now;(void)thread_id;return 1;
+ (void)integer;(void)boolean;(void)num;(void)clock_now;(void)thread_id;return 1;
 }
 static int on_thread(void){DWORD t=GetCurrentThreadId();if(!thread_id)thread_id=t;return t==thread_id;}
